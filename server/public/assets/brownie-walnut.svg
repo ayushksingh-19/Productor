@@ -1,0 +1,15 @@
+<svg width="320" height="220" viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="220" rx="26" fill="#FFF8F2"/>
+  <rect x="68" y="38" width="110" height="138" rx="14" fill="#4C338E"/>
+  <rect x="88" y="58" width="70" height="60" rx="8" fill="#8B6BDF"/>
+  <path d="M116 73H149L158 84H125L116 73Z" fill="#FFD65D"/>
+  <path d="M102 128H168V146C168 153.732 161.732 160 154 160H116C108.268 160 102 153.732 102 146V128Z" fill="#FFCE66"/>
+  <text x="123" y="96" fill="#FFF7F2" font-size="19" font-family="Trebuchet MS, sans-serif" font-weight="700">WALNUT</text>
+  <text x="111" y="122" fill="#FFF7F2" font-size="34" font-family="Trebuchet MS, sans-serif" font-weight="700">BROWNIE</text>
+  <circle cx="218" cy="115" r="34" fill="#80532E"/>
+  <circle cx="238" cy="128" r="34" fill="#5D3115"/>
+  <circle cx="208" cy="128" r="34" fill="#6D3A18"/>
+  <circle cx="192" cy="110" r="9" fill="#C89968"/>
+  <circle cx="223" cy="94" r="9" fill="#C89968"/>
+  <circle cx="247" cy="112" r="9" fill="#C89968"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg width="320" height="220" viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="220" rx="26" fill="#FFF7FB"/>
+  <rect x="68" y="38" width="110" height="138" rx="14" fill="#F447B4"/>
+  <rect x="86" y="58" width="74" height="44" rx="7" fill="#FF93D6"/>
+  <text x="100" y="80" fill="#FFF5FA" font-size="17" font-family="Trebuchet MS, sans-serif" font-weight="700">CHOCO</text>
+  <text x="99" y="104" fill="#FFF5FA" font-size="17" font-family="Trebuchet MS, sans-serif" font-weight="700">FUDGE</text>
+  <rect x="90" y="116" width="66" height="32" rx="8" fill="#5E3117"/>
+  <path d="M90 128C104 116 142 116 156 128V148H90V128Z" fill="#3A1A0D"/>
+  <circle cx="212" cy="118" r="38" fill="#5A2D16"/>
+  <circle cx="236" cy="128" r="32" fill="#774120"/>
+  <circle cx="214" cy="102" r="12" fill="#E8B170"/>
+  <circle cx="240" cy="110" r="10" fill="#E8B170"/>
+  <circle cx="226" cy="138" r="10" fill="#E8B170"/>
+</svg>
