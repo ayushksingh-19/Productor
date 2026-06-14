@@ -1,6 +1,19 @@
 # Orufy Assignment Build
 
-This repo contains the requested full-stack assignment implementation using:
+This repository contains the full-stack assignment build using React, Vite, Node.js, Express, MongoDB, and Mongoose.
+
+## Deployment & Submission
+
+- Host the project on GitHub:
+  [https://github.com/ayushksingh-19/Productor](https://github.com/ayushksingh-19/Productor)
+- The repository includes:
+  - Clear folder structure with `client/` and `server/`
+  - Setup instructions in `README.md`
+  - Frontend run steps
+  - Backend run steps
+  - Required environment variables such as `MONGODB_URI`
+
+## Project Overview
 
 - `client/`: React + Vite frontend
 - `server/`: Node.js + Express + Mongoose backend
@@ -10,11 +23,11 @@ This repo contains the requested full-stack assignment implementation using:
 
 - OTP-based login flow with login, OTP, success, and error states
 - Home dashboard with `Published` and `Unpublished` tabs
-- Product listing, search, publish/unpublish, edit, and delete
+- Product listing, search, publish, unpublish, edit, and delete
 - Add product modal with image uploads
 - Seeded sample products to make the UI meaningful on first run
 
-## Run Locally
+## Setup Instructions
 
 ### 1. Install dependencies
 
@@ -24,9 +37,9 @@ cd client && npm install
 cd ../server && npm install
 ```
 
-### 2. Environment variables
+### 2. Required environment variables
 
-Create a root `.env` file if you want to use a real MongoDB database:
+Create a root `.env` file:
 
 ```env
 PORT=4000
@@ -34,9 +47,15 @@ CLIENT_ORIGIN=http://localhost:5173
 MONGODB_URI=mongodb://127.0.0.1:27017/orufy
 ```
 
-If `MONGODB_URI` is omitted, the server will start with `mongodb-memory-server` so the app still runs locally for review.
+Environment variable notes:
 
-### 3. Start the full app
+- `PORT`: backend server port
+- `CLIENT_ORIGIN`: frontend URL allowed by CORS
+- `MONGODB_URI`: MongoDB connection string
+
+If `MONGODB_URI` is omitted, the server falls back to `mongodb-memory-server` so the project can still run locally for review.
+
+### 3. Run the full project
 
 From the project root:
 
@@ -49,7 +68,7 @@ This starts:
 - frontend on [http://localhost:5173](http://localhost:5173)
 - backend on [http://localhost:4000](http://localhost:4000)
 
-### 4. Run the frontend only
+### 4. How to run the frontend
 
 ```bash
 cd client
@@ -58,7 +77,7 @@ npm run dev
 
 This starts the frontend on [http://localhost:5173](http://localhost:5173).
 
-### 5. Run the backend only
+### 5. How to run the backend
 
 ```bash
 cd server
@@ -66,20 +85,6 @@ npm run dev
 ```
 
 This starts the backend on [http://localhost:4000](http://localhost:4000).
-
-### 6. Required environment variables
-
-The backend reads these values from the root `.env` file:
-
-```env
-PORT=4000
-CLIENT_ORIGIN=http://localhost:5173
-MONGODB_URI=mongodb://127.0.0.1:27017/orufy
-```
-
-- `PORT`: the backend server port
-- `CLIENT_ORIGIN`: the frontend URL allowed by CORS
-- `MONGODB_URI`: the MongoDB connection string
 
 ## Demo Notes
 
