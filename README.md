@@ -2,6 +2,12 @@
 
 This repository contains the full-stack assignment build using React, Vite, Node.js, Express, MongoDB, and Mongoose.
 
+## Live Project Links
+
+- Live frontend: [https://productor-nu.vercel.app/](https://productor-nu.vercel.app/)
+- Live backend API: [https://productor-api.onrender.com](https://productor-api.onrender.com)
+- GitHub repository: [https://github.com/ayushksingh-19/Productor](https://github.com/ayushksingh-19/Productor)
+
 ## Deployment & Submission
 
 - Host the project on GitHub:
