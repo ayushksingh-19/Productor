@@ -4,11 +4,12 @@ const { env } = require("./config/env");
 const { seedDatabase } = require("./utils/seed");
 
 async function bootstrap() {
+  console.log(`Bootstrapping server in ${env.nodeEnv} mode on port ${env.port}...`);
   await connectDatabase();
   await seedDatabase();
 
-  const server = app.listen(env.port, () => {
-    console.log(`Server running on http://localhost:${env.port}`);
+  const server = app.listen(env.port, "0.0.0.0", () => {
+    console.log(`Server running on port ${env.port}`);
   });
 
   const shutdown = async () => {
