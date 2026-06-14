@@ -2,24 +2,28 @@ const Product = require("../models/Product");
 const { createHttpError, toRelativeUploadPath } = require("../utils/helpers");
 const { serializeProduct } = require("../utils/serializers");
 
-function parseBoolean(value) {
+function readText(value) {
+  return String(value || "").trim();
+}
+
+function readNumber(value, label) {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    throw createHttpError(400, `${label} must be a valid positive number.`);
+  }
+
+  return numberValue;
+}
+
+function readExchangeValue(value) {
   return String(value).toLowerCase() === "true" || value === true || value === "Yes";
 }
 
-function parseNumber(value, fieldName) {
-  const numericValue = Number(value);
-
-  if (!Number.isFinite(numericValue) || numericValue < 0) {
-    throw createHttpError(400, `${fieldName} must be a valid positive number.`);
-  }
-
-  return numericValue;
-}
-
-function validateProductFields(body) {
-  const name = String(body.name || "").trim();
-  const type = String(body.type || "").trim();
-  const brandName = String(body.brandName || "").trim();
+function getProductPayload(body) {
+  const name = readText(body.name);
+  const type = readText(body.type);
+  const brandName = readText(body.brandName);
 
   if (!name) {
     throw createHttpError(400, "Please enter product name.");
@@ -34,26 +38,26 @@ function validateProductFields(body) {
   }
 
   return {
-    brandName,
-    isExchangeable: parseBoolean(body.isExchangeable),
-    mrp: parseNumber(body.mrp, "MRP"),
     name,
-    quantity: parseNumber(body.quantity, "Quantity stock"),
-    sellingPrice: parseNumber(body.sellingPrice, "Selling price"),
     type,
+    brandName,
+    quantity: readNumber(body.quantity, "Quantity stock"),
+    mrp: readNumber(body.mrp, "MRP"),
+    sellingPrice: readNumber(body.sellingPrice, "Selling price"),
+    isExchangeable: readExchangeValue(body.isExchangeable),
   };
 }
 
-function parseExistingImages(value, fallback) {
+function getExistingImages(value, fallbackImages) {
   if (!value) {
-    return fallback;
+    return fallbackImages;
   }
 
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch (error) {
-    return fallback;
+    return Array.isArray(parsed) ? parsed : fallbackImages;
+  } catch {
+    return fallbackImages;
   }
 }
 
@@ -84,7 +88,7 @@ async function listProducts(req, res, next) {
 
 async function createProduct(req, res, next) {
   try {
-    const fields = validateProductFields(req.body);
+    const fields = getProductPayload(req.body);
     const images = (req.files || []).map((file) => toRelativeUploadPath(file.filename));
 
     const product = await Product.create({
@@ -110,8 +114,8 @@ async function updateProduct(req, res, next) {
       throw createHttpError(404, "Product not found.");
     }
 
-    const fields = validateProductFields(req.body);
-    const retainedImages = parseExistingImages(req.body.existingImages, product.images);
+    const fields = getProductPayload(req.body);
+    const retainedImages = getExistingImages(req.body.existingImages, product.images);
     const uploadedImages = (req.files || []).map((file) => toRelativeUploadPath(file.filename));
 
     product.set({

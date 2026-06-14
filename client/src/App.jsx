@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Navigate,
   NavLink,
@@ -15,37 +15,65 @@ import ToastStack from "./components/ToastStack";
 import api, { toMediaUrl } from "./lib/api";
 import { formatCount, initialsFromName } from "./lib/formatters";
 
-function loadStoredSession() {
+function getSavedSession() {
   try {
-    const rawSession = localStorage.getItem("orufy-session");
-    return rawSession ? JSON.parse(rawSession) : null;
-  } catch (error) {
+    const stored = localStorage.getItem("orufy-session");
+    return stored ? JSON.parse(stored) : null;
+  } catch {
     return null;
   }
 }
 
+function getAuthStepLabel(step, identifier, errorMessage) {
+  if (step === "success") {
+    return "OTP Entered";
+  }
+
+  if (step === "otp" && errorMessage) {
+    return "Error";
+  }
+
+  if (step === "otp") {
+    return "Enter OTP";
+  }
+
+  return identifier.trim() ? "Enter Credentials" : "Login";
+}
+
+function matchesSearch(product, searchValue) {
+  const search = searchValue.trim().toLowerCase();
+
+  if (!search) {
+    return true;
+  }
+
+  const text = `${product.name} ${product.brandName} ${product.type}`.toLowerCase();
+  return text.includes(search);
+}
+
 export default function App() {
-  const [session, setSession] = useState(loadStoredSession);
+  const [session, setSession] = useState(getSavedSession);
 
   useEffect(() => {
-    if (session) {
-      localStorage.setItem("orufy-session", JSON.stringify(session));
-    } else {
+    if (!session) {
       localStorage.removeItem("orufy-session");
+      return;
     }
+
+    localStorage.setItem("orufy-session", JSON.stringify(session));
   }, [session]);
 
   return (
     <Routes>
       <Route
+        path="/auth"
         element={
           session ? (
             <Navigate replace to="/home" />
           ) : (
-            <AuthPage onAuthenticated={(user) => setSession(user)} />
+            <AuthPage onAuthenticated={setSession} />
           )
         }
-        path="/auth"
       />
 
       <Route
@@ -57,13 +85,13 @@ export default function App() {
           )
         }
       >
-        <Route element={<HomePage />} path="/home" />
-        <Route element={<ProductsPage />} path="/products" />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/products" element={<ProductsPage />} />
       </Route>
 
       <Route
-        element={<Navigate replace to={session ? "/home" : "/auth"} />}
         path="*"
+        element={<Navigate replace to={session ? "/home" : "/auth"} />}
       />
     </Routes>
   );
@@ -74,84 +102,73 @@ function AuthPage({ onAuthenticated }) {
   const [identifier, setIdentifier] = useState("");
   const [step, setStep] = useState("credentials");
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
-  const [errorMessage, setErrorMessage] = useState("");
   const [demoOtp, setDemoOtp] = useState("");
-  const [pending, setPending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const phaseLabel = useMemo(() => {
-    if (errorMessage && step === "otp") {
-      return "Error";
-    }
+  const stepLabel = getAuthStepLabel(step, identifier, errorMessage);
 
-    if (step === "success") {
-      return "OTP Entered";
-    }
-
-    if (step === "otp") {
-      return "Enter OTP";
-    }
-
-    return identifier.trim() ? "Enter Credentials" : "Login";
-  }, [errorMessage, identifier, step]);
-
-  async function handleCredentialSubmit(event) {
+  async function requestOtp(event) {
     event.preventDefault();
-    setPending(true);
+    setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      const response = await api.post("/auth/request-otp", { identifier });
-      setDemoOtp(response.data.demoOtp);
+      const { data } = await api.post("/auth/request-otp", { identifier });
+      setDemoOtp(data.demoOtp);
       setOtpDigits(["", "", "", "", "", ""]);
       setStep("otp");
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Unable to request OTP.");
     } finally {
-      setPending(false);
+      setIsSubmitting(false);
     }
   }
 
-  async function handleOtpSubmit(event) {
+  async function verifyOtp(event) {
     event.preventDefault();
-    setPending(true);
+    setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      const otp = otpDigits.join("");
-      const response = await api.post("/auth/verify-otp", { identifier, otp });
+      const { data } = await api.post("/auth/verify-otp", {
+        identifier,
+        otp: otpDigits.join(""),
+      });
+
       setStep("success");
 
       window.setTimeout(() => {
-        onAuthenticated(response.data.user);
+        onAuthenticated(data.user);
         navigate("/home", { replace: true });
       }, 700);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Unable to verify OTP.");
     } finally {
-      setPending(false);
+      setIsSubmitting(false);
     }
   }
 
-  async function handleResendOtp() {
-    setPending(true);
+  async function resendOtp() {
+    setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      const response = await api.post("/auth/request-otp", { identifier });
-      setDemoOtp(response.data.demoOtp);
+      const { data } = await api.post("/auth/request-otp", { identifier });
+      setDemoOtp(data.demoOtp);
       setOtpDigits(["", "", "", "", "", ""]);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Unable to resend OTP.");
     } finally {
-      setPending(false);
+      setIsSubmitting(false);
     }
   }
 
-  function updateOtpDigit(index, value) {
-    const safeValue = value.replace(/\D/g, "").slice(-1);
-    setOtpDigits((current) =>
-      current.map((digit, position) => (position === index ? safeValue : digit)),
-    );
+  function changeOtpDigit(index, value) {
+    const cleanValue = value.replace(/\D/g, "").slice(-1);
+    const nextDigits = [...otpDigits];
+    nextDigits[index] = cleanValue;
+    setOtpDigits(nextDigits);
   }
 
   return (
@@ -162,70 +179,84 @@ function AuthPage({ onAuthenticated }) {
             <span className="auth-visual__brand-mark" />
             <strong>Productr</strong>
           </div>
+
           <div className="auth-visual__art">
             <div className="auth-showcase">
-              <img alt="Featured product preview" src={toMediaUrl("/media-assets/brownie-walnut.svg")} />
+              <img
+                alt="Featured product preview"
+                src={toMediaUrl("/media-assets/brownie-walnut.svg")}
+              />
             </div>
           </div>
         </aside>
 
         <section className="auth-panel">
-          <div className="auth-panel__state">{phaseLabel}</div>
+          <div className="auth-panel__state">{stepLabel}</div>
 
           {step === "otp" || step === "success" ? (
-            <form className="auth-form" onSubmit={handleOtpSubmit}>
+            <form className="auth-form" onSubmit={verifyOtp}>
               <h1>Login to your Productr Account</h1>
+
               <label className="auth-field">
                 <span>Enter OTP</span>
                 <div className="otp-row">
                   {otpDigits.map((digit, index) => (
                     <input
-                      disabled={step === "success"}
                       key={index}
                       maxLength={1}
-                      onChange={(event) => updateOtpDigit(index, event.target.value)}
                       value={digit}
+                      disabled={step === "success"}
+                      onChange={(event) => changeOtpDigit(index, event.target.value)}
                     />
                   ))}
                 </div>
               </label>
 
-              {errorMessage ? <p className="field-error field-error--otp">{errorMessage}</p> : null}
+              {errorMessage ? (
+                <p className="field-error field-error--otp">{errorMessage}</p>
+              ) : null}
 
               <button
                 className="primary-button"
-                disabled={pending || step === "success"}
                 type="submit"
+                disabled={isSubmitting || step === "success"}
               >
-                {step === "success" ? "Verified" : pending ? "Verifying..." : "Enter your OTP"}
+                {step === "success"
+                  ? "Verified"
+                  : isSubmitting
+                    ? "Verifying..."
+                    : "Enter your OTP"}
               </button>
 
               <p className="otp-helper">
                 Didn't receive OTP?
-                <button onClick={handleResendOtp} type="button">
+                <button type="button" onClick={resendOtp}>
                   Resend
                 </button>
               </p>
 
-              <p className="demo-helper">Demo OTP: {demoOtp || "Request a code to begin"}</p>
+              <p className="demo-helper">
+                Demo OTP: {demoOtp || "Request a code to begin"}
+              </p>
             </form>
           ) : (
-            <form className="auth-form" onSubmit={handleCredentialSubmit}>
+            <form className="auth-form" onSubmit={requestOtp}>
               <h1>Login to your Productr Account</h1>
+
               <label className="auth-field">
                 <span>Email or Phone number</span>
                 <input
-                  onChange={(event) => setIdentifier(event.target.value)}
-                  placeholder="Enter email or phone number"
                   type="text"
                   value={identifier}
+                  placeholder="Enter email or phone number"
+                  onChange={(event) => setIdentifier(event.target.value)}
                 />
               </label>
 
               {errorMessage ? <p className="field-error">{errorMessage}</p> : null}
 
-              <button className="primary-button" disabled={pending} type="submit">
-                {pending ? "Sending OTP..." : "Login"}
+              <button className="primary-button" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Sending OTP..." : "Login"}
               </button>
             </form>
           )}
@@ -241,111 +272,111 @@ function AuthPage({ onAuthenticated }) {
 }
 
 function DashboardLayout({ onLogout, session }) {
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMutating, setIsMutating] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [modalState, setModalState] = useState({ mode: null, product: null });
-  const [toasts, setToasts] = useState([]);
-  const deferredSearch = useDeferredValue(searchTerm);
   const location = useLocation();
+  const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [modal, setModal] = useState({ mode: null, product: null });
+  const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
-    fetchProducts();
+    loadProducts();
   }, []);
 
-  useEffect(() => {
-    if (toasts.length === 0) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setToasts((current) => current.slice(1));
-    }, 3200);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [toasts]);
-
-  async function fetchProducts() {
+  async function loadProducts() {
     setIsLoading(true);
+    setLoadError("");
 
     try {
-      const response = await api.get("/products");
-      setProducts(response.data.products);
+      const { data } = await api.get("/products");
+      setProducts(data.products);
+    } catch (error) {
+      setLoadError(
+        error.response?.data?.message || "Unable to load products right now.",
+      );
     } finally {
       setIsLoading(false);
     }
   }
 
-  function pushToast(message, tone = "success") {
-    setToasts((current) => [
-      ...current,
-      { id: `${Date.now()}-${Math.random()}`, message, tone },
-    ]);
+  function showToast(message, tone = "success") {
+    const id = `${Date.now()}-${Math.random()}`;
+    setToasts((current) => [...current, { id, message, tone }]);
+
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((item) => item.id !== id));
+    }, 3200);
   }
 
-  async function handleSaveProduct(formData) {
-    setIsMutating(true);
+  async function saveProduct(formData) {
+    setIsSaving(true);
 
     try {
-      const response =
-        modalState.mode === "edit"
-          ? await api.put(`/products/${modalState.product.id}`, formData)
-          : await api.post("/products", formData);
+      const request =
+        modal.mode === "edit"
+          ? api.put(`/products/${modal.product.id}`, formData)
+          : api.post("/products", formData);
 
-      await fetchProducts();
-      setModalState({ mode: null, product: null });
-      pushToast(response.data.message);
+      const { data } = await request;
+      await loadProducts();
+      setModal({ mode: null, product: null });
+      showToast(data.message);
     } catch (error) {
-      pushToast(error.response?.data?.message || "Unable to save product.", "error");
+      showToast(error.response?.data?.message || "Unable to save product.", "error");
       throw error;
     } finally {
-      setIsMutating(false);
+      setIsSaving(false);
     }
   }
 
-  async function handleDeleteProduct(product) {
-    setIsMutating(true);
+  async function deleteProduct(product) {
+    setIsSaving(true);
 
     try {
-      const response = await api.delete(`/products/${product.id}`);
-      await fetchProducts();
-      setModalState({ mode: null, product: null });
-      pushToast(response.data.message);
+      const { data } = await api.delete(`/products/${product.id}`);
+      await loadProducts();
+      setModal({ mode: null, product: null });
+      showToast(data.message);
     } catch (error) {
-      pushToast(error.response?.data?.message || "Unable to delete product.", "error");
+      showToast(error.response?.data?.message || "Unable to delete product.", "error");
     } finally {
-      setIsMutating(false);
+      setIsSaving(false);
     }
   }
 
-  async function handleToggleStatus(product, status) {
-    setIsMutating(true);
+  async function changeProductStatus(product, nextStatus) {
+    setIsSaving(true);
 
     try {
-      const response = await api.patch(`/products/${product.id}/status`, { status });
-      await fetchProducts();
-      pushToast(response.data.message);
+      const { data } = await api.patch(`/products/${product.id}/status`, {
+        status: nextStatus,
+      });
+
+      await loadProducts();
+      showToast(data.message);
     } catch (error) {
-      pushToast(
+      showToast(
         error.response?.data?.message || "Unable to update product status.",
         "error",
       );
     } finally {
-      setIsMutating(false);
+      setIsSaving(false);
     }
   }
 
-  const context = {
-    deferredSearch,
+  const pageContext = {
     isLoading,
-    onDelete: (product) => setModalState({ mode: "delete", product }),
-    onEdit: (product) => setModalState({ mode: "edit", product }),
-    onOpenCreate: () => setModalState({ mode: "create", product: null }),
-    onToggleStatus: handleToggleStatus,
+    loadError,
+    onCreate: () => setModal({ mode: "create", product: null }),
+    onDelete: (product) => setModal({ mode: "delete", product }),
+    onEdit: (product) => setModal({ mode: "edit", product }),
+    onRetryLoad: loadProducts,
+    onToggleStatus: changeProductStatus,
     products,
-    rawSearch: searchTerm,
-    setRawSearch: setSearchTerm,
+    searchTerm,
+    setSearchTerm,
   };
 
   return (
@@ -358,7 +389,9 @@ function DashboardLayout({ onLogout, session }) {
               <strong>Productr</strong>
             </div>
           </div>
+
           <div className="sidebar__search">Search</div>
+
           <nav className="sidebar__nav">
             <NavLink className="sidebar__link" to="/home">
               Home
@@ -367,7 +400,8 @@ function DashboardLayout({ onLogout, session }) {
               Products
             </NavLink>
           </nav>
-          <button className="sidebar__logout" onClick={onLogout} type="button">
+
+          <button className="sidebar__logout" type="button" onClick={onLogout}>
             Log out
           </button>
         </aside>
@@ -380,13 +414,13 @@ function DashboardLayout({ onLogout, session }) {
 
             <div className="workspace__tools">
               <label className="workspace__searchbar">
-                <span aria-hidden="true" className="workspace__search-icon">
+                <span className="workspace__search-icon" aria-hidden="true">
                   <SearchGlyph />
                 </span>
                 <input
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search Services, Products"
                   value={searchTerm}
+                  placeholder="Search Services, Products"
+                  onChange={(event) => setSearchTerm(event.target.value)}
                 />
               </label>
 
@@ -400,26 +434,26 @@ function DashboardLayout({ onLogout, session }) {
           </header>
 
           <div className="workspace__body">
-            <Outlet context={context} />
+            <Outlet context={pageContext} />
           </div>
         </section>
       </main>
 
-      {modalState.mode ? (
+      {modal.mode ? (
         <ProductModal
-          mode={modalState.mode}
-          onClose={() => setModalState({ mode: null, product: null })}
-          onConfirmDelete={handleDeleteProduct}
-          onSave={handleSaveProduct}
-          pending={isMutating}
-          product={modalState.product}
+          mode={modal.mode}
+          pending={isSaving}
+          product={modal.product}
+          onClose={() => setModal({ mode: null, product: null })}
+          onConfirmDelete={deleteProduct}
+          onSave={saveProduct}
         />
       ) : null}
 
       <ToastStack
         items={toasts}
-        onDismiss={(id) =>
-          setToasts((current) => current.filter((toast) => toast.id !== id))
+        onDismiss={(toastId) =>
+          setToasts((current) => current.filter((item) => item.id !== toastId))
         }
       />
     </>
@@ -427,20 +461,21 @@ function DashboardLayout({ onLogout, session }) {
 }
 
 function HomePage() {
-  const { deferredSearch, isLoading, onDelete, onEdit, onToggleStatus, products } =
-    useOutletContext();
+  const {
+    isLoading,
+    loadError,
+    onDelete,
+    onEdit,
+    onRetryLoad,
+    onToggleStatus,
+    products,
+    searchTerm,
+  } = useOutletContext();
   const [activeTab, setActiveTab] = useState("published");
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesStatus = product.status === activeTab;
-      const matchesSearch = `${product.name} ${product.brandName} ${product.type}`
-        .toLowerCase()
-        .includes(deferredSearch.toLowerCase());
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [activeTab, deferredSearch, products]);
+  const visibleProducts = products.filter((product) => {
+    return product.status === activeTab && matchesSearch(product, searchTerm);
+  });
 
   return (
     <section className="surface">
@@ -451,8 +486,8 @@ function HomePage() {
               ? "tab-row__tab tab-row__tab--active"
               : "tab-row__tab"
           }
-          onClick={() => setActiveTab("published")}
           type="button"
+          onClick={() => setActiveTab("published")}
         >
           Published
         </button>
@@ -462,8 +497,8 @@ function HomePage() {
               ? "tab-row__tab tab-row__tab--active"
               : "tab-row__tab"
           }
-          onClick={() => setActiveTab("unpublished")}
           type="button"
+          onClick={() => setActiveTab("unpublished")}
         >
           Unpublished
         </button>
@@ -471,28 +506,30 @@ function HomePage() {
 
       {isLoading ? (
         <LoadingState />
-      ) : filteredProducts.length === 0 ? (
+      ) : loadError ? (
+        <LoadErrorState message={loadError} onRetry={onRetryLoad} />
+      ) : visibleProducts.length === 0 ? (
         <EmptyState
-          subtitle={
-            activeTab === "published"
-              ? "Your published products will appear here. Create and publish your first product to get started."
-              : "Your unpublished products will appear here as drafts while you prepare them."
-          }
           title={
             activeTab === "published"
               ? "No Published Products"
               : "No Unpublished Products"
           }
+          subtitle={
+            activeTab === "published"
+              ? "Your published products will appear here. Create and publish your first product to get started."
+              : "Your unpublished products will appear here as drafts while you prepare them."
+          }
         />
       ) : (
         <div className="product-grid">
-          {filteredProducts.map((product) => (
+          {visibleProducts.map((product) => (
             <ProductCard
               key={product.id}
+              product={product}
               onDelete={onDelete}
               onEdit={onEdit}
               onToggleStatus={onToggleStatus}
-              product={product}
             />
           ))}
         </div>
@@ -503,52 +540,53 @@ function HomePage() {
 
 function ProductsPage() {
   const {
-    deferredSearch,
     isLoading,
+    loadError,
+    onCreate,
     onDelete,
     onEdit,
-    onOpenCreate,
+    onRetryLoad,
     onToggleStatus,
     products,
+    searchTerm,
   } = useOutletContext();
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) =>
-      `${product.name} ${product.brandName} ${product.type}`
-        .toLowerCase()
-        .includes(deferredSearch.toLowerCase()),
-    );
-  }, [deferredSearch, products]);
+  const visibleProducts = products.filter((product) =>
+    matchesSearch(product, searchTerm),
+  );
 
   return (
     <section className="surface">
       <div className="surface__topbar">
         <h2>Products</h2>
-        <button className="link-button" onClick={onOpenCreate} type="button">
+        <button className="link-button" type="button" onClick={onCreate}>
           + Add Products
         </button>
       </div>
 
       {isLoading ? (
         <LoadingState />
-      ) : filteredProducts.length === 0 ? (
+      ) : loadError ? (
+        <LoadErrorState message={loadError} onRetry={onRetryLoad} />
+      ) : visibleProducts.length === 0 ? (
         <EmptyState
-          actionLabel="Add your Products"
-          onAction={onOpenCreate}
-          subtitle="You can create products without connecting stores, and keep them unpublished until they are ready."
           title="Feels a little empty over here..."
+          subtitle="You can create products without connecting stores, and keep them unpublished until they are ready."
+          actionLabel="Add your Products"
+          onAction={onCreate}
         />
       ) : (
         <>
-          <div className="product-count">{formatCount(filteredProducts.length)} products</div>
+          <div className="product-count">{formatCount(visibleProducts.length)} products</div>
+
           <div className="product-grid">
-            {filteredProducts.map((product) => (
+            {visibleProducts.map((product) => (
               <ProductCard
                 key={product.id}
+                product={product}
                 onDelete={onDelete}
                 onEdit={onEdit}
                 onToggleStatus={onToggleStatus}
-                product={product}
               />
             ))}
           </div>
@@ -558,7 +596,7 @@ function ProductsPage() {
   );
 }
 
-function EmptyState({ actionLabel, onAction, subtitle, title }) {
+function EmptyState({ title, subtitle, actionLabel, onAction }) {
   return (
     <div className="empty-state">
       <div className="empty-state__icon">
@@ -567,13 +605,15 @@ function EmptyState({ actionLabel, onAction, subtitle, title }) {
         <span />
         <span className="empty-state__plus">+</span>
       </div>
+
       <h3>{title}</h3>
       <p>{subtitle}</p>
+
       {actionLabel ? (
         <button
           className="primary-button primary-button--small"
-          onClick={onAction}
           type="button"
+          onClick={onAction}
         >
           {actionLabel}
         </button>
@@ -591,15 +631,27 @@ function LoadingState() {
   );
 }
 
+function LoadErrorState({ message, onRetry }) {
+  return (
+    <div className="empty-state">
+      <h3>We couldn't load your products</h3>
+      <p>{message}</p>
+      <button className="primary-button primary-button--small" type="button" onClick={onRetry}>
+        Try Again
+      </button>
+    </div>
+  );
+}
+
 function SearchGlyph() {
   return (
-    <svg fill="none" height="14" viewBox="0 0 16 16" width="14">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
       <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
       <path
         d="M10.5 10.5L13.5 13.5"
         stroke="currentColor"
-        strokeLinecap="round"
         strokeWidth="1.5"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -607,13 +659,13 @@ function SearchGlyph() {
 
 function CaretGlyph() {
   return (
-    <svg fill="none" height="10" viewBox="0 0 12 10" width="12">
+    <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
       <path
         d="M2 3L6 7L10 3"
         stroke="currentColor"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.5"
       />
     </svg>
   );

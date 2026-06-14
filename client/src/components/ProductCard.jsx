@@ -1,24 +1,5 @@
-import { clsx } from "clsx";
 import { toMediaUrl } from "../lib/api";
 import { formatCount, formatCurrency } from "../lib/formatters";
-
-function StatusButton({ product, onToggleStatus }) {
-  const nextStatus =
-    product.status === "published" ? "unpublished" : "published";
-
-  return (
-    <button
-      className={clsx("action-button", {
-        "action-button--lime": product.status === "published",
-        "action-button--primary": product.status !== "published",
-      })}
-      onClick={() => onToggleStatus(product, nextStatus)}
-      type="button"
-    >
-      {product.status === "published" ? "Unpublish" : "Publish"}
-    </button>
-  );
-}
 
 export default function ProductCard({
   product,
@@ -26,6 +7,11 @@ export default function ProductCard({
   onEdit,
   onToggleStatus,
 }) {
+  const isPublished = product.status === "published";
+  const statusButtonClass = isPublished
+    ? "action-button action-button--lime"
+    : "action-button action-button--primary";
+
   return (
     <article className="product-card">
       <div className="product-card__image-shell">
@@ -70,19 +56,29 @@ export default function ProductCard({
         </dl>
 
         <div className="product-card__actions">
-          <StatusButton product={product} onToggleStatus={onToggleStatus} />
+          <button
+            className={statusButtonClass}
+            type="button"
+            onClick={() =>
+              onToggleStatus(product, isPublished ? "unpublished" : "published")
+            }
+          >
+            {isPublished ? "Unpublish" : "Publish"}
+          </button>
+
           <button
             className="action-button action-button--muted"
-            onClick={() => onEdit(product)}
             type="button"
+            onClick={() => onEdit(product)}
           >
             Edit
           </button>
+
           <button
-            aria-label={`Delete ${product.name}`}
             className="icon-button"
-            onClick={() => onDelete(product)}
             type="button"
+            aria-label={`Delete ${product.name}`}
+            onClick={() => onDelete(product)}
           >
             <TrashIcon />
           </button>
@@ -94,13 +90,13 @@ export default function ProductCard({
 
 function TrashIcon() {
   return (
-    <svg fill="none" height="16" viewBox="0 0 24 24" width="16">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path
         d="M9 4.5h6l.6 1.5H19v1.5H5V6h3.4L9 4.5Zm1.5 6v6m3-6v6M7.5 7.5l.7 10.3A1.5 1.5 0 0 0 9.7 19h4.6a1.5 1.5 0 0 0 1.5-1.2l.7-10.3"
         stroke="currentColor"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.5"
       />
     </svg>
   );
