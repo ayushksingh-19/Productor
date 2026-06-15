@@ -8,22 +8,23 @@ const productRoutes = require("./routes/productRoutes");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
+const allowedOrigins = new Set([
+  ...env.clientOrigins,
+  env.clientOrigin,
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+]);
 
 app.use(
   cors({
     credentials: true,
     origin(origin, callback) {
-      if (
-        !origin ||
-        origin === env.clientOrigin ||
-        origin === "http://127.0.0.1:5173" ||
-        origin === "http://localhost:5173"
-      ) {
+      if (!origin || allowedOrigins.has(origin)) {
         callback(null, true);
         return;
       }
 
-      callback(new Error("Origin not allowed by CORS."));
+      callback(new Error(`Origin not allowed by CORS: ${origin}`));
     },
   }),
 );

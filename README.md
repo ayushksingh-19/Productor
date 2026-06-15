@@ -50,13 +50,15 @@ Create a root `.env` file:
 ```env
 PORT=4000
 CLIENT_ORIGIN=http://localhost:5173
+CLIENT_ORIGINS=http://localhost:5173,https://productor-nu.vercel.app
 MONGODB_URI=mongodb://127.0.0.1:27017/orufy
 ```
 
 Environment variable notes:
 
 - `PORT`: backend server port
-- `CLIENT_ORIGIN`: frontend URL allowed by CORS
+- `CLIENT_ORIGIN`: primary frontend URL allowed by CORS
+- `CLIENT_ORIGINS`: comma-separated list of additional frontend URLs allowed by CORS
 - `MONGODB_URI`: MongoDB connection string
 
 If `MONGODB_URI` is omitted, the server falls back to `mongodb-memory-server` so the project can still run locally for review.
